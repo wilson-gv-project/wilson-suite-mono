@@ -111,7 +111,10 @@ class PropsCollection:
 # symbolic
 @dataclass
 class FreqTermsCollection:
-    freqterms: list[VibDiffTerm]
+    """
+    VibDiffTerm's states are HarmOscStateSymbolic instances
+    """
+    freqterms: Sequence[VibDiffTerm]
     
     def __post_init__(self):
         self.freqterms = tuple(self.freqterms)
@@ -133,8 +136,12 @@ class FreqTermsCollection:
         return False
 
     def get_vibenedenom(self):
+        """
+        freqterm.sl. and freqterm.sr. should be HarmOscStateSymbolic instances
+        """
         def sr_or_sl_only(freqterm: VibDiffTerm):
-            return (freqterm.sl is None or freqterm.sl == []) or (freqterm.sr is None or freqterm.sr == [])
+            return (freqterm.sl.q == []) or (freqterm.sr.q == [])
+
         return FreqTermsCollection(freqterms=[ft for ft in self.freqterms if not ft.is_pert_wf_diff or sr_or_sl_only(ft)])
     
     def get_pert_wf_diff(self):
@@ -155,7 +162,7 @@ class ResonanceMotif:
         get_vibdiffs
         get_freq_axes
     """
-    resonance_conditions: list[ResonanceCondition]
+    resonance_conditions: Sequence[ResonanceCondition]
     
     def __iter__(self):
         yield from self.resonance_conditions
@@ -171,9 +178,9 @@ class ResonanceMotif:
         conditions = []
         for cond in self.resonance_conditions:
             new_pf = tuple(cond.pf)
-            new_diff = tuple([tuple(cond.diff.sl.q), tuple(cond.diff.sr.q)])
+            new_diff = (tuple(cond.diff.sl.q), tuple(cond.diff.sr.q))
 
-            conditions.append(tuple([new_diff, new_pf]))
+            conditions.append((new_diff, new_pf))
         return tuple(conditions)
     
     def to_str(self):
@@ -418,10 +425,10 @@ class MolecularProperty:
 	"""
 	# FIXME: Improve on prop_spec name; settle more consistently what the attributes will be and what must be default
 	prop_spec: dict
-	trivial_name: str=None
+	trivial_name: str | None = None
 	vals: InitVar[Any] = field(default=None, repr=False)
-	calc_setup: DataOriginInfo = None
-	extra_data: dict = None
+	calc_setup: DataOriginInfo | None = None
+	extra_data: dict | None = None
 
 	def to_dict(self):
 		return {
