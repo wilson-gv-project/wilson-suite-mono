@@ -5,6 +5,18 @@ purification of abstractions
 
 rsp_evaluator
 
+rsp_eval/
+  plan.py        # ONLY importer of wilson_derive
+                 #   in:  terms, axis choice        out: EvalPlan + WorkManifest
+                 #   holds: PropsCollection, FreqTermsCollection, ResonanceMotif,
+                 #          parse_vibpert_term, index bookkeeping, motif keys
+  ingest.py      # MolSystemData, VibStatesData — the data door
+  precompute.py  # manifest + data -> Tables (avrg tensors, vibenedenom, vibdiff energies)
+  kernel.py      # arrays and floats only; the hierarchical sum; picklable
+  features.py    # locations + coefficients -> SpectralFeature
+  render.py      # grid
+
+Boundary types: EvalPlan (frozen, the compiled program), WorkManifest (what data/tensors are needed; answers need_what()), Tables (numeric precomputation keyed by manifest entries), Coefficients (dict[IndexAssignment, complex]), SpectralFeature (exists).
 
 """
 
@@ -17,10 +29,10 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from wilson_suite.wilson_derive.abstractions import (
-    HarmOscStateSymbolic,
-    PolProp,
-    ResonanceCondition,
-    VibDiffTerm,
+    HarmOscStateSymbolic, # here and term_parts
+    PolProp, # here and term_parts
+    ResonanceCondition, # here and term_parts
+    VibDiffTerm, # here and term_parts and vibene_differences
 )
 from wilson_suite.wilson_utils.prop_trivname import prop_trivname
 from wilson_suite.wilson_utils.unit_convertor import convNu2Ene
@@ -95,7 +107,10 @@ class PropsCollection:
         if averaged.props:
             averaged._set_attr_for_all_props('inds', None)
             return averaged
-    
+
+    """
+    Mutation after key insertion. sort() mutates self.props, returns self, and reassigns a list into a field __post_init__ had normalized to a tuple. A collection used as a key can be mutated after insertion. Frozen, with sorted() returning a new instance.
+    """
     def sort(self):
         """
         non-averaged props will be in the end of the tuple
@@ -154,6 +169,10 @@ class FreqTermsCollection:
         return tuple(sorted({i for vd in self.get_vibenedenom() for i in vd.sl.q}))
 
 
+"""
+Where does motif handling split? ResonanceMotif is a plan-level dedup key, but process_resonance_motifs needs vibstates_data — molecular. Motif identification is plan, motif location is numeric; one function currently does both. Splitting makes the "many terms, one motif" saving explicit rather than incidental.
+
+"""
 # symbolic
 @dataclass
 class ResonanceMotif:
@@ -264,6 +283,9 @@ class ResonanceMotif:
         return set([label for cond in self.resonance_conditions for i in cond.diff for label in i.q])
 
 
+"""
+ParameterSet has a type that lies. Declared Mapping[str, int], but __init__ injects params['zero'] = 'zero' (a str value) and __getitem__ remaps '' → 'zero'; __lt__ hardcodes the alphabet ('a'..'h'). A generic index-assignment type that secretly knows vibrational-state labelling conventions. Decide which it is: if generic, the zero sentinel and ordering are policy living in a labelling module; if domain, name it (IndexAssignment) and make the conventions explicit and tested. The ground state currently spelled three ways ('', 'zero', state_label == 'zero') is that ambiguity leaking.
+"""
 # numerical
 @dataclass(frozen=True)
 class ParameterSet(Mapping[str, int]):

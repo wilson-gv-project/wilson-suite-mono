@@ -48,6 +48,9 @@ MagnConditions = tuple[tuple[int, ...], ...]
 
 # --- configuration -------------------------------------------------------
 
+"""
+TermsInAxes.need_what() (rps_evaluation.py:65, currently NotImplementedError) is the work manifest. It enables "verify all data present before computing anything", and batching of QC jobs from the manifest — which MolPropsCollection.group_by_calc_setup / build_request_dict are approaching from the wrong end.
+"""
 
 @dataclass(frozen=True)
 class TermsInAxes:
