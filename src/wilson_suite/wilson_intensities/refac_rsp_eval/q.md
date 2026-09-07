@@ -115,20 +115,134 @@ strategy, the type is downstream's. (§3.)
 
 ### R3 — Mutation direction
 
-> A layer may not mutate objects owned by an upstream layer.
+> Intensities may **read** derive-owned objects. It may never **write** to them.
 
-`_set_attr_for_all_props` assigns to `PolProp.inds` — a derive-owned object, possibly shared with
-other holders of that term. `identify_avrg_motif` deep-copies first; `sort()` does not.
-Grep-able (attribute assignment onto derive types inside intensities). This independently forces
-translate-over-wrap: you cannot canonicalize by mutation if you do not own the object, and
-canonicalizing by deep-copy is admitting you made a new type anyway.
+**Why writing is possible at all.** `PropsCollection` copies nothing:
 
-### R4 — The strategy-change test
+```python
+props: Sequence[PolProp]
+def __post_init__(self):
+    self.props = tuple(self.props)   # tuple of the SAME objects
+```
 
-For each method ask: *if precomputed averaging tensors were replaced by on-the-fly averaging,
-does this survive?* `identify_avrg_motif`, `sort`, `get_num_indices_vibenedenom` die.
-`get_cart_axes` survives. A class whose rate of change tracks the evaluator's storage strategy
-is the evaluator's class.
+and it is built as `PropsCollection(props=term.props)`. Collection and term point at identical
+`PolProp` instances; writing through one writes through the other.
+
+**Why it matters.** `PolProp.__eq__` and `PolProp.h()` both read `self.inds`:
+
+```python
+def h(self):
+    return hash((tuple([i.h() for i in self.ops]), self.dord, tuple(self.inds)))
+```
+
+and `terms_simplify` keys its registry on `term.h()`. Blanking `inds` from the evaluator changes
+derive's notion of that term's identity underneath it — and `tuple(None)` raises `TypeError`.
+
+**Current status: not violated.** The only writer is `_set_attr_for_all_props`, always called on a
+deep copy. `sort()` reassigns `self.props` — it mutates the *collection's own field*, not the
+`PolProp`s; that is the separate stale-key bug in §9. So R3 holds today by the discipline of
+remembering to copy, which is exactly the discipline that lapses.
+
+**Why it forces translate-over-wrap.** The evaluator needs a props-thing with `inds` blanked
+(the motif key). Three ways:
+
+1. mutate in place → forbidden, corrupts the term
+2. deep-copy, then mutate → what the code does
+3. define a small type holding only what the key needs
+
+What (2) produces is an object of class `PolProp` with `inds=None`. That is **not** an invalid
+`PolProp` — `__init__` sets `self.inds = None`, so it is the normal initial state of every
+`PolProp`. It is something subtler and worse: the same state carrying two different meanings.
+
+`PolProp` has a two-state lifecycle:
+
+- **unindexed** — after `__init__`, `inds is None`. `__eq__` works (`None == None`);
+  `__hash__` and `.h()` crash on `tuple(None)`.
+- **indexed** — after `setInds()`. Everything works.
+
+To derive, state 1 means *"under construction, indices not assigned yet"* — `VibPerturbedTerm.sort`
+does `for i in self.props: for j in i.inds:` with no guard, i.e. it assumes props are indexed by the
+time terms are sorted. To the evaluator, `identify_avrg_motif` drives props *backwards* into state 1
+on purpose, because *"indices stripped"* is the canonical form of a motif key.
+"Not filled in yet" vs. "deliberately index-agnostic" — one state, two meanings.
+
+**The code already shows the strain.** `PropsCollection` cannot delegate to `PolProp.__hash__`,
+because the elements it must hash are in the unhashable state. So it builds its own identity:
+
+```python
+def __hash__(self):
+    return hash((self.get_cart_axes(), self.get_mode_indices()))
+```
+
+and guards for `None` in three separate places:
+
+```python
+get_mode_indices:                groups = [p.inds if p.inds is not None else [] ...]
+get_mode_indices_group_template: [len(p.inds) if p.inds is not None else [] ...]
+__repr__:                        [len(p.inds) if p.inds else 0 ...]
+```
+
+That is direct corroboration of R2: derive's identity is undefined in exactly the state the
+evaluator's canonical form requires, so the evaluator had to define identity from scratch and
+scatter `None`-guards to survive. (Aside: `get_mode_indices_group_template` returns `[]` rather
+than `0` in its None branch, inside what is otherwise a list of lengths. Marked UNUSED, so
+cosmetic — but the kind of thing that survives in a method nobody calls.)
+
+**The hazard is silent, not loud.** Because `inds=None` looks legitimate, a motif prop is
+indistinguishable from a freshly constructed one. Leaked into code expecting a term's props, it
+does not crash — it looks like something merely awaiting `setInds()`. That argues for a distinct
+type harder than a crash would.
+
+The same copy-then-write pattern runs the other way in live code,
+`amplitudes/averaged_props.py:238-241`:
+
+```python
+prop = copy.deepcopy(prop)
+prop.inds = nm_indices[index_tracker: index_tracker + prop.dord]
+```
+
+— deep-copy, then write `inds` directly, bypassing `setInds()`'s validation and sorting. Again,
+a `PolProp` derive's own constructor path never produced.
+
+So (2) *is* (3), dishonestly: a new type has been made, it is being called `PolProp`, and a
+`deepcopy` is paid per call for the disguise. The deep-copy is not a workaround for the rule —
+it is the evidence that a new type is wanted.
+
+> **When you deep-copy an upstream object in order to change what it means, you have already
+> decided to make your own type. Do it explicitly.**
+
+### R4 — Fact about the object, or key into someone else's table?
+
+*(Not a layer-assignment test — precompute and on-the-fly are both the evaluator. This test answers
+the different question: "these are just collections of symbolic objects, couldn't derive use them?")*
+
+> For each method: does it **state a fact about the object**, or does it **build a key into a table
+> that lives elsewhere**?
+
+`get_num_indices_vibenedenom`:
+
+```python
+return tuple(sorted({i for vd in self.get_vibenedenom() for i in vd.sl.q}))
+```
+
+Every decision there is about a dict key, not about physics — `set` for dedup, `sorted` for
+order-stability, `tuple` for hashability, `sl` only because the tabulated case is the one with
+empty `sr`. And the call site is a subscript (`eval.py:1145`):
+
+```python
+precalculated_data.vibenedenoms_tensors[freqterms.get_num_indices_vibenedenom()]
+```
+
+The method exists to index someone else's dict. Contrast `get_cart_axes()` — the Cartesian axes
+carried by the operators, true of the object regardless of who asks or what is stored where.
+
+Key-construction methods are reusable by nobody lacking that exact table, including a future
+evaluator that drops it. Derive would want roughly three of these twelve methods; the rest encode
+a lookup format derive has no table for. **That is why the class cannot be shared — not layering,
+but that most of it is not about the objects it holds.**
+
+This is family (c) from §4, so the rule reduces to: *if family (c) is non-empty, the class is not
+a generic container.*
 
 ### R5 — The no-molecule test
 
