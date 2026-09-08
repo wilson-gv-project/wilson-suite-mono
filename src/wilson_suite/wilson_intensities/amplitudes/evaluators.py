@@ -93,15 +93,12 @@ def process_resonance_motifs(derived_terms: list['VibPerturbedTerm'],
             spec_window=None
         )
         motif_res_loc.update(this_motif_res_locs)
-    
-    terms_for_motifs: dict[ResonanceMotif, list[VibPerturbedTerm]] = {res_motif: [] for res_motif in unique_res_motifs}
-    
+
+    terms_for_motifs: dict[ResonanceMotif, list[VibPerturbedTerm]] = {}
+
     for vibterm in derived_terms:
-        res_motif = ResonanceMotif(vibterm.res)
-        for u_motif in unique_res_motifs:
-            if u_motif == res_motif:
-                terms_for_motifs[u_motif].append(vibterm)
-                
+        terms_for_motifs.setdefault(ResonanceMotif(vibterm.res), []).append(vibterm)
+
     return motif_res_loc, terms_for_motifs
 
 def evaluate_terms_coeffs(derived_terms: list['VibPerturbedTerm'],

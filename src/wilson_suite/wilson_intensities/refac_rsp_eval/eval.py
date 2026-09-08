@@ -186,7 +186,10 @@ class PropsCollection:
     props: Sequence[PolProp]
 
     def __post_init__(self):
-        self.props = tuple(self.props)
+        """
+        keeping copied instances in the collection
+        """
+        self.props = tuple(copy.deepcopy(self.props))
 
     def __iter__(self):
         yield from self.props
@@ -264,7 +267,10 @@ class FreqTermsCollection:
     freqterms: Sequence[VibDiffTerm]
     
     def __post_init__(self):
-        self.freqterms = tuple(self.freqterms)
+        """
+        keeping copied instances in the collection
+        """
+        self.freqterms = tuple(copy.deepcopy(self.freqterms))
 
     def __iter__(self):
         yield from self.freqterms
@@ -301,118 +307,63 @@ class FreqTermsCollection:
         return tuple(sorted({i for vd in self.get_vibenedenom() for i in vd.sl.q}))
 
 
-"""
-Where does motif handling split? ResonanceMotif is a plan-level dedup key, but process_resonance_motifs needs vibstates_data — molecular. Motif identification is plan, motif location is numeric; one function currently does both. Splitting makes the "many terms, one motif" saving explicit rather than incidental.
+@dataclass(frozen=True)
+class ResCondKey:
+    """One resonance condition reduced to identity: quanta labels + perturbing freqs.
+    `diff` is (left quanta, right quanta); ground state is ()."""
+    diff: tuple[tuple[str, ...], tuple[str, ...]]
+    pf: tuple[str, ...]
 
-"""
-# symbolic
-@dataclass
+    @property
+    def left(self):
+        return self.diff[0]
+
+    @property
+    def right(self):
+        return self.diff[1]
+
+
+@dataclass(frozen=True)
 class ResonanceMotif:
-    """
-    Collects ResonanceCondition instances into a "resonance motif"
-        get_vibdiffs
-        get_freq_axes
-    """
-    resonance_conditions: Sequence[ResonanceCondition]
-    
-    def __iter__(self):
-        yield from self.resonance_conditions
+    """Plan-level dedup key: a motif is its canonical tuple, nothing more.
+    Immutable, so it never aliases derive-owned ResonanceConditions and never copies them."""
+    conditions: tuple[ResCondKey, ...]
 
-    def __eq__(self, other):
-        if isinstance(other, ResonanceMotif):
-            return self._tuplify() == other._tuplify()
-        return False
-    def __hash__(self):
-        return hash(self._tuplify())
-    
+    def __post_init__(self):
+        object.__setattr__(self, 'conditions', tuple(self.conditions))
+
+    @classmethod
+    def from_conditions(cls, conditions: Sequence[ResonanceCondition]) -> 'ResonanceMotif':
+        return cls(tuple(
+            ResCondKey(diff=(tuple(c.diff.sl.q), tuple(c.diff.sr.q)), pf=tuple(c.pf))
+            for c in conditions
+        ))
+
+    @classmethod
+    def from_tuples(cls, tuple_of_tuples) -> 'ResonanceMotif':
+        """sorted() reproduces HarmOscStateSymbolic's normalisation of q."""
+        return cls(tuple(
+            ResCondKey(diff=(tuple(sorted(sl)), tuple(sorted(sr))), pf=tuple(pf))
+            for (sl, sr), pf in tuple_of_tuples
+        ))
+
     def _tuplify(self):
-        conditions = []
-        for cond in self.resonance_conditions:
-            new_pf = tuple(cond.pf)
-            new_diff = (tuple(cond.diff.sl.q), tuple(cond.diff.sr.q))
+        return tuple((c.diff, c.pf) for c in self.conditions)
 
-            conditions.append((new_diff, new_pf))
-        return tuple(conditions)
-    
-    def to_str(self):
-        """
-        EVV / paper1 spectific here
-        """
-        strings = []
-        for cond in self.resonance_conditions:
-            if 'B' in cond.pf[0]:
-                state = []
-                for i in [cond.diff.sl.q, cond.diff.sr.q]:
-                    if len(i)!=0:
-                        state.append('+'.join(i))
-                    else:
-                        state.append('.')
-                strings.append(f'{','.join(state)}')
-        return ' x '.join(strings)
+    def __iter__(self):
+        yield from self.conditions
 
-    # UNUSED?
-    @classmethod
-    def from_tuples(cls, tupleOfTuples):
-        """
-        motif1 = (((('a', 'b'), ('a',)), ('A',)), ((('b',), ('a',)), ('B',)))
-        motif2 = (((('a', 'b'), ('a',)), ('A',)),)
-        motif3 = (((('',), ('a',)), ('B',)), ((('',), ('a',)), ('A', '-B')))
-        motif4 = (((('',), ('a',)), ('B',)), ((('b',), ('a',)), ('B',)))
-        """
-        r_conditions = []
-        for rc_tuple in tupleOfTuples:
-            print('rc tuple', rc_tuple)
-            rc = ResonanceCondition(diff=VibDiffTerm(sl=HarmOscStateSymbolic(q=rc_tuple[0][0]),
-                                                     sr=HarmOscStateSymbolic(q=rc_tuple[0][1])), pf=rc_tuple[1])
-            r_conditions.append(rc)
-        return cls(r_conditions)
+    def __len__(self):
+        return len(self.conditions)
 
-    # UNUSED
-    @classmethod
-    def from_dicts(cls, res_conds_listdict: list[dict]):
-        """
-        motif3 = (
-                  ((left-('',), right-('a',)), pert_freqs-('B',)), 
-                  ((left-('',), right-('a',)), pert_freqs-('A', '-B')))
+    def get_max_different_freq_axes(self):
+        return {ax.strip('-') for c in self.conditions for ax in c.pf}
 
-        res_conds_dict = [{'left': tuple, 'right': tuple, 'pert_freqs': tuple},
-                          {'left': tuple, 'right': tuple, 'pert_freqs': tuple}]
-        """
-        r_conditions = []
-
-        for rc_dict in res_conds_listdict:
-            rc = ResonanceCondition(diff=VibDiffTerm(sl=HarmOscStateSymbolic(q=rc_dict['left']),
-                                                     sr=HarmOscStateSymbolic(q=rc_dict['right'])), 
-                                                     pf=rc_dict['pert_freqs'])
-            r_conditions.append(rc)
-        return cls(r_conditions)
+    def get_nm_indices(self):
+        return {label for c in self.conditions for quanta in c.diff for label in quanta}
 
     def __repr__(self):
-        return f'{self.resonance_conditions}'
-    
-    def __len__(self):
-        """
-        Returns the number of elements in the container.
-        """
-        return len(self.resonance_conditions)
-    
-    # UNUSED
-    @property
-    def resonance_location_class(self, total_num_axes):
-        return total_num_axes - len(self.resonance_conditions)
-    
-    # UNUSED
-    def get_vibdiffs(self):
-        return {i: cond.diff for i, cond in enumerate(self.resonance_conditions)}
-    # UNUSED
-    def get_freq_axes(self):
-        return {i: tuple(cond.pf) for i, cond in enumerate(self.resonance_conditions)}
-    
-    def get_max_different_freq_axes(self):
-       return set([i.strip('-') for cond in self.resonance_conditions for i in cond.pf])
-    
-    def get_nm_indices(self):
-        return set([label for cond in self.resonance_conditions for i in cond.diff for label in i.q])
+        return f'{self.conditions}'
 
 
 """
@@ -946,6 +897,17 @@ class VibDiff:
         )
 
         return cls(left=left_state, right=right_state)
+
+    @classmethod
+    def from_quanta(cls, left_q, right_q, index_dict, vibstates_data: 'VibStatesData') -> 'VibDiff':
+        """Same as from_symbolic, but from quanta labels instead of a VibDiffTerm —
+        so callers holding a ResCondKey don't need a derive object."""
+        def label(quanta):
+            return ','.join(str(i) for i in sorted(index_dict[i] for i in quanta)) or 'zero'
+        zero = VibState(harm_quanta_coeffs={}, state_label='zero', energy=0.0)
+        ll, rl = label(left_q), label(right_q)
+        return cls(left=zero if ll == 'zero' else vibstates_data.get_state_by_label(ll),
+                   right=zero if rl == 'zero' else vibstates_data.get_state_by_label(rl))
 
     def cache_it(self, vibdiff_cache: 'VibDiffCache'):
         """Ensure this VibDiff's energy is cached."""
