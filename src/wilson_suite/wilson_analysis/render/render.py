@@ -99,4 +99,3 @@ def render_spectrum(spec_data, spec_eval_setup: 'SpecEvalSetup',
         return tuple([fig, ax, contour, cbar]), {'renderer': renderer}
     else:
         return tuple([fig, ax, contour, cbar]), {}
-

@@ -261,6 +261,9 @@ class EvaluationInfo:
 	freq_variables - is a dict {variable label: variable data} with a range for each
 	fixed_variables - a dict of values for the non-varied fixed variables 
 		(e.g., when having a 2D slice of a 3D spectrum at fixed 3rd)
+
+	apply_magn_conditions: str # 'evaluation', 'eval', 'evl' 'rendering', 'render', 'rnd'
+	
 	"""
 	freq_variables: dict = None
 	Gamma: float = None
@@ -273,13 +276,25 @@ class EvaluationInfo:
 	spectral_axes: SpectralAxisSet = None
 	box_range_safety_margin: float = 0.1
 	scale_wrt_max_intensity: bool = False
-	minimum_box_padding: float = 0.0
+	minimum_box_padding: float = 10.0
 			
 	# not filtering by default
 	apply_exp_magn_conditions_eval: bool = False
 	apply_exp_magn_conditions_render: bool = False
+	apply_magn_conditions: str = None # 'evaluation', 'eval', 'evl' 'rendering', 'render', 'rnd'
 	exp_magn_conditions: tuple = None
 	magn_conditions_margin: tuple = 80.
+
+	def __post_init__(self):
+		
+		if self.apply_magn_conditions is not None:
+			if self.apply_magn_conditions in ('evaluation', 'eval', 'evl'):
+				self.apply_exp_magn_conditions_eval = True
+				self.apply_exp_magn_conditions_render = True
+				pass
+			else:
+				raise ValueError(f"Unknown 'apply_magn_conditions' flag: {self.apply_magn_conditions!r}")
+
 
 @dataclass
 class RenderingInfo:
@@ -305,6 +320,21 @@ class RenderingInfo:
 	# style configurations - currently will work/be used for matplotlib renderer
 	style_config: PlotConfig = field(default_factory=lambda: PlotConfig())
 	axes_labels: dict = None
+	
+	dynamic_range: float = 100
+
+	apply_exp_magn_conditions_render: bool = False
+	apply_magn_conditions: str = None # 'evaluation', 'eval', 'evl' 'rendering', 'render', 'rnd'
+	exp_magn_conditions: tuple = None
+	magn_conditions_margin: tuple = 80.
+
+	def __post_init__(self):
+		if self.apply_magn_conditions is not None:
+			if self.apply_magn_conditions in ('rendering', 'render', 'rnd'):
+				self.apply_exp_magn_conditions_render = True
+			else:
+				raise ValueError(f"Unknown 'apply_magn_conditions' flag: {self.apply_magn_conditions!r}")
+
 
 # An evaluation setup contains various visualization configuration information
 # and information about other relevant evaluation-related choices for a wilsonSimulation instance

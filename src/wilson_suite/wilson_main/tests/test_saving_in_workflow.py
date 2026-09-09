@@ -124,7 +124,7 @@ def test_save_wilsonsim():
 
     vib_ana.set_include_modes_list()
     
-    from wilson_suite.wilson_utils.some_reprs import make_SpectralAxisSet
+    from wilson_suite.wilson_utils.builder_functions import make_SpectralAxisSet
     axes_choice = make_SpectralAxisSet({'A': [2], 'B': [-1, 2]})
     sim.setAxisChoiceAndTranslateTerms(axes_choice)
 

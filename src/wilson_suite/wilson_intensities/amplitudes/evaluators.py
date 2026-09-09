@@ -77,13 +77,13 @@ def prepDataForEval(pulse_polarization_vector: np.ndarray,
 
 def process_resonance_motifs(derived_terms: list['VibPerturbedTerm'],
                             vibstates_data: VibStatesData,
-                            vibdiff_cache: VibDiffCache) -> tuple[dict[ResonanceMotif, ResLocGeoObject], 
+                            vibdiff_cache: VibDiffCache) -> tuple[dict[ResonanceMotif,dict[ResLocGeoObject,list]], 
                                                                   dict[ResonanceMotif, list['VibPerturbedTerm']]]:
     """
     Take a list of terms and process resonance motifs and find their locations.
     """
     unique_res_motifs = identify_unique_resmotifs(derived_terms)
-    motif_res_loc: dict[ResonanceMotif, ResLocGeoObject] = {}
+    motif_res_loc: dict[ResonanceMotif,dict[ResLocGeoObject,list]] = {}
     
     for res_motif in unique_res_motifs:
         this_motif_res_locs = find_resonance_locations_wrt_index_choices(
@@ -93,15 +93,12 @@ def process_resonance_motifs(derived_terms: list['VibPerturbedTerm'],
             spec_window=None
         )
         motif_res_loc.update(this_motif_res_locs)
-    
-    terms_for_motifs: dict[ResonanceMotif, list[VibPerturbedTerm]] = {res_motif: [] for res_motif in unique_res_motifs}
-    
+
+    terms_for_motifs: dict[ResonanceMotif, list[VibPerturbedTerm]] = {}
+
     for vibterm in derived_terms:
-        res_motif = ResonanceMotif(vibterm.res)
-        for u_motif in unique_res_motifs:
-            if u_motif == res_motif:
-                terms_for_motifs[u_motif].append(vibterm)
-                
+        terms_for_motifs.setdefault(ResonanceMotif(vibterm.res), []).append(vibterm)
+
     return motif_res_loc, terms_for_motifs
 
 def evaluate_terms_coeffs(derived_terms: list['VibPerturbedTerm'],
@@ -150,7 +147,7 @@ def evaluate_coeff_for_feat(feature: SpectralFeature,
 def get_features_from_terms_for_eval(derived_terms: list['VibPerturbedTerm'],
                                      vibstates_data: VibStatesData,
                                      vibdiff_cache: VibDiffCache,
-                                     lineshape_parameter: float=None) -> list[SpectralFeature]:
+                                     lineshape_parameter: float | None=None) -> list[SpectralFeature]:
     """
     SpectralFeature:
         location
@@ -162,13 +159,13 @@ def get_features_from_terms_for_eval(derived_terms: list['VibPerturbedTerm'],
     """
     motif_res_loc, terms_for_motifs = process_resonance_motifs(derived_terms, vibstates_data, vibdiff_cache)
 
-    return get_features_to_draw(motif_res_loc, terms_for_motifs, lineshape_parameter=lineshape_parameter)
+    return get_features_to_draw(motif_res_loc, terms_for_motifs, lineshape_parameter=lineshape_parameter)[0]
 
 def get_features_to_draw(motif_res_loc: dict[ResonanceMotif, dict[ResLocGeoObject, list]],
                          terms_for_motifs: dict[ResonanceMotif, list['VibPerturbedTerm']], 
                          term_coeffs_per_index: dict['VibPerturbedTerm', 
-                                                     dict[ParameterSet, tuple[float, dict]]]=None,
-                         lineshape_parameter: float=None) -> tuple[list[SpectralFeature], list[SpectralFeature]]:
+                                                     dict[ParameterSet, tuple[float, dict]]] | None=None,
+                         lineshape_parameter: float | None=None) -> tuple[list[SpectralFeature], list[SpectralFeature]]:
     """
 
     lineshape_parameter - uniform lineshape parameters (for all axes) for each feature for now
@@ -183,10 +180,15 @@ def get_features_to_draw(motif_res_loc: dict[ResonanceMotif, dict[ResLocGeoObjec
 
         for res_geo_obj, list_state_dicts in motif_res_loc[res_motif].items():
 
-            lst_params = tuple([ParameterSet(states_dict) for states_dict in list_state_dicts])
-            term_contributions=tuple([TermParametersChoice(res_motif=res_motif,
-                                        states_parameters=lst_params,
-                                        term_ids=tuple([t.to_str() for t in terms_for_motifs[res_motif]]) )])
+            lst_params = tuple(ParameterSet(states_dict) for states_dict in list_state_dicts)
+            
+            term_contributions=(
+                                TermParametersChoice(
+                                    res_motif=res_motif,
+                                    states_parameters=lst_params,
+                                    term_ids=tuple(t.to_str() for t in terms_for_motifs[res_motif]),
+                                ),
+                            )
 
             if term_coeffs_per_index is not None:
                 list_to_sum = [term_coeffs_per_index[term][ParameterSet(states_dict)][0] for term in terms_for_motifs[res_motif] for states_dict in list_state_dicts]

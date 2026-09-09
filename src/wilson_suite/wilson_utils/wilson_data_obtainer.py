@@ -42,6 +42,11 @@ def wilson_data_obtainer(requested_data_dict: dict[str,DataOriginInfo],
             from CQCParse.parsing import parse_from_source
             from dataclasses import asdict
 
+            """
+            asdict(o) {'source_type': 'gaussian', 
+                        'lvl_theory': 'B3LYP', 'basis_set': 'cc-pVQZ', 
+                        'base_file_loc': '/home/vlev/monorepo/src/../data_for_tests/g16_formaldehyde_B3LYPcc_pVQZ.out'}
+            """
             these_results_dict = parse_from_source(requested_data=origin_to_req_data[o], 
                                                    reindex_modes=reindex_modes,  **asdict(o))
             

@@ -243,7 +243,7 @@ def test_full_integration_EVV_axes():
     evv_exp = evv_experiment()
     terms = ws.derive.derive.get_fully_enhanced_terms(experiment=evv_exp)
 
-    from wilson_suite.wilson_utils.some_reprs import make_SpectralAxisSet
+    from wilson_suite.wilson_utils.builder_functions import make_SpectralAxisSet
     axes_choice: ws.main.spectrum_abstractions.SpectralAxisSet = make_SpectralAxisSet({'A': [1], 'B': [-1,2]}) # {'A': [(1,)], 'B': [(-1,), (2,)]}
 
     calc_setup = ws.main.abstractions.DataOriginInfo(source_type='gaussian', 
@@ -320,7 +320,7 @@ def test_full_integration__EVV_axes_with_apply_exp_magn_conditions():
     evv_exp = evv_experiment()
     terms = ws.derive.derive.get_fully_enhanced_terms(experiment=evv_exp)
 
-    from wilson_suite.wilson_utils.some_reprs import make_SpectralAxisSet
+    from wilson_suite.wilson_utils.builder_functions import make_SpectralAxisSet
     axes_choice: ws.main.spectrum_abstractions.SpectralAxisSet = make_SpectralAxisSet({'A': [1], 'B': [-1,2]}) # {'A': [(1,)], 'B': [(-1,), (2,)]}
 
     calc_setup = ws.main.abstractions.DataOriginInfo(source_type='gaussian', 
@@ -401,7 +401,7 @@ def test_full_integration_EVV_axes_dress_these_with_boxes_minimum_box_padding():
     evv_exp = evv_experiment()
     terms = ws.derive.derive.get_fully_enhanced_terms(experiment=evv_exp)
 
-    from wilson_suite.wilson_utils.some_reprs import make_SpectralAxisSet
+    from wilson_suite.wilson_utils.builder_functions import make_SpectralAxisSet
     axes_choice: ws.main.spectrum_abstractions.SpectralAxisSet = make_SpectralAxisSet({'A': [1], 'B': [-1,2]}) # {'A': [(1,)], 'B': [(-1,), (2,)]}
 
     calc_setup = ws.main.abstractions.DataOriginInfo(source_type='gaussian', 
@@ -722,7 +722,7 @@ def test_full_integration_EVV_axes_getResults_extra():
     evv_exp = evv_experiment()
     terms = ws.derive.derive.get_fully_enhanced_terms(experiment=evv_exp)
 
-    from wilson_suite.wilson_utils.some_reprs import make_SpectralAxisSet
+    from wilson_suite.wilson_utils.builder_functions import make_SpectralAxisSet
     axes_choice: ws.main.spectrum_abstractions.SpectralAxisSet = make_SpectralAxisSet({'A': [1], 'B': [-1,2]}) # {'A': [(1,)], 'B': [(-1,), (2,)]}
 
     calc_setup = ws.main.abstractions.DataOriginInfo(source_type='gaussian', 

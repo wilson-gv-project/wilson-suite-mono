@@ -38,8 +38,7 @@ class PropsCollection:
         self.props = tuple(self.props)
 
     def __iter__(self):
-        for prop in self.props:
-            yield prop
+        yield from self.props
 
     def __hash__(self):
         # return hash(tuple([tuple(self.get_cart_axes()), self.get_total_difforder()]))
@@ -416,8 +415,8 @@ class TermParametersChoice:
     in compile_feature() 
     """
     res_motif: "ResonanceMotif"
-    states_parameters: Tuple["ParameterSet"]
-    term_ids: Tuple[int] = field(default_factory=tuple)
+    states_parameters: Tuple["ParameterSet", ...]
+    term_ids: tuple[int|str, ...] = field(default_factory=tuple)
 
     def sort_parameters(self) -> "TermParametersChoice":
         """

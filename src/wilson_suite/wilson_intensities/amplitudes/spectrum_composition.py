@@ -600,8 +600,12 @@ class SpectralFeature:
         magn_conditions:
             (('-A', 'B',),) -- when w1,w2
             (('B',),) -- when w1,w2-w1
-
+        
+        if None - just returns back features from input
         """
+        if magn_conditions is None:
+            return features
+
         res_features = []
 
         for feat in features:

@@ -588,6 +588,14 @@ class VibExperiment:
             interactionRecurse(int_sequences, int_seed, i, 0, find_epochs(self.field))
 
         return int_sequences
+    
+
+    def derive_terms(self) -> dict:
+        """
+        returns original derived terms with pulses (independent vars)
+        """
+        from wilson_suite.wilson_derive.derive import get_fully_enhanced_terms
+        return get_fully_enhanced_terms(experiment=self)
 
 
 def get_carrier_freqs_uv(pulses) -> dict:

@@ -1,10 +1,16 @@
 import copy
 import json
 from fractions import Fraction
+from dataclasses import dataclass
 
 from wilson_suite.wilson_derive.abstractions import PolProp, VibDiffTerm, ResonanceCondition, QOperator, \
     HarmOscStateSymbolic, TransitionIntegral
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from wilson_suite.wilson_experiment.experiment_abstractions import VibExperiment
+    from wilson_suite.wilson_main.abstractions import MolecularProperty
+    from wilson_suite.wilson_derive.term_var_translate import SpectralAxisSet
 
 class VibPerturbedTerm:
     """
@@ -615,3 +621,73 @@ class VibContribTerm:
 
         print('')
 
+
+
+@dataclass
+class VibPertTermsCollection:
+    """
+    term_dict -- as orriginally derived terms - from ws.derive.derive.get_fully_enhanced_terms() or a list already
+    experiment -- provenance of these terms
+    axes_choice -- tracking if translated to axes choice, and which ones
+    """
+    term_dict: dict[int, dict[tuple, VibPerturbedTerm]]
+    experiment: 'VibExperiment'
+    axes_choice: 'SpectralAxisSet' = None
+    magn_conditions: tuple = None
+
+    def show_as(self, format: str='latex', part: str = None):
+        """
+        format - latex, str
+        """
+        if isinstance(self.term_dict, dict):
+            flat_terms_dict = self.make_flat(self.term_dict)
+        elif isinstance(self.term_dict, list):
+            flat_terms_dict = self.term_dict
+
+        if format=='latex':
+
+            for id, term in flat_terms_dict.items():
+                print('&'+term.to_latex(part=part) + rf' \\ % term_id {id}')
+        
+        elif format =='str':
+        
+            for id, term in flat_terms_dict.items():
+                print(term.to_str())
+
+        else:
+            raise NotImplementedError('This format is no implemented for VibPertTermsCollection.show_as()')
+
+
+    def make_flat(self, as_list=False) -> dict[str, VibPerturbedTerm] | list[VibPerturbedTerm]:
+        """
+        returns flat either dict or list, not a VibPertTermsCollection
+        """
+        from wilson_suite.wilson_utils.termdict_from_symb_term import derived_terms_flat
+        return derived_terms_flat(self.term_dict, as_list)
+
+
+    def required_data(self, freqs: str='static') -> tuple[int, list['MolecularProperty']]:
+        """
+        find_props here returns a list of MolecularProperty objects - is it too much at this point?
+        """
+        from wilson_suite.wilson_main.main_functions import find_max_state_lvl, find_props
+
+        return find_props(self.term_dict, freqs), find_max_state_lvl(self.term_dict)
+    
+
+    def available_axes_choices(self):
+        self.experiment.tell_axis_options()
+
+    
+    def translate_to_ax_choice(self, axes_choice, magn_conditions_translated=None) -> 'VibPertTermsCollection':
+        """
+        returns a new VibPertTermsCollection object
+
+        should have some default axes_choice?
+        """
+
+        from wilson_suite.wilson_derive.term_var_translate import translate_terms_to_axis_variables
+        return VibPertTermsCollection(translate_terms_to_axis_variables(self.term_dict, axes_choice), 
+                                      experiment=self.experiment,
+                                      axes_choice=axes_choice,
+                                      magn_conditions=magn_conditions_translated)

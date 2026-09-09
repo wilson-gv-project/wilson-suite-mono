@@ -34,6 +34,8 @@ class PlotConfig:
     """Configuration for plot styling"""
     figsize: Tuple[int, int] = (35, 45)
     label_fontsize: int = 25
+    cb_tick_label_fontsize: int = 15
+    tick_label_fontsize: int = 15
     font_dict: Dict[str, Any] = field(default_factory=lambda: {'size': 20})
     colormap: str = 'magma'  # Better contrast colormap
     saturation_color: str = '#FF00FF'

@@ -1,6 +1,9 @@
-from . import wilson_derive as ws_derive
-from .wilson_derive.response_terms import VibPerturbedTerm
 from . import wilson_experiment as ws_experiment
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from wilson_suite.wilson_derive.response_terms import VibPerturbedTerm
+
 
 import logging
 # wilson. - for hierarchy of loggers
@@ -113,7 +116,7 @@ def experiment_beta_alpha_cars() -> ws_experiment.experiment_abstractions.VibExp
 
     return wexp.VibExperiment(field=field_a, detector=detector_a, scans=(scan_a,))
 
-def evv_terms() -> list[VibPerturbedTerm]:
+def evv_terms() -> list['VibPerturbedTerm']:
     """
     Returns EVV terms derived with wilson_derive: These terms are not translated to any specific axis choice and are
     instead expressed in terms of pulse ID interactions

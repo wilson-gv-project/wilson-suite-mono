@@ -171,7 +171,7 @@ def do_anharmonic_analysis(vib_ana: VibAnaSetup, props: list[MolecularProperty],
 
 # WilsonSimulation related functions
 
-def find_props(terms, freqs: str='static') -> list[MolecularProperty]:
+def find_props(terms: dict[int, dict[tuple, VibPerturbedTerm]], freqs: str='static') -> list[MolecularProperty]:
 
 	props = []
 	
@@ -210,7 +210,7 @@ def find_props(terms, freqs: str='static') -> list[MolecularProperty]:
 	return props
 
 
-def find_max_state_lvl(terms: list[VibPerturbedTerm]) -> int:
+def find_max_state_lvl(terms: dict[int, dict[tuple, VibPerturbedTerm]]) -> int:
 
 	for i in terms:
 
@@ -252,7 +252,7 @@ def find_residual_vib_info(vib_ana: VibAnaSetup) -> tuple[list[MolecularProperty
 	return props, residual_vib_info
 
 
-def find_props_and_max_state_lvl(terms: list[VibPerturbedTerm], 
+def find_props_and_max_state_lvl(terms: dict[int, dict[tuple, VibPerturbedTerm]], 
 								 vib_ana: VibAnaSetup, freqs: str='static') -> tuple[list[MolecularProperty], dict, int]:
 	"""
 	Returns: props, residual_vib_info, find_max_state_lvl(terms) - list[MolecularProperty], dict, int

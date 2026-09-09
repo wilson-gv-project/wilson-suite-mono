@@ -497,7 +497,7 @@ def get_from_pkl_features(pkl_file, lineshape_parameter):
     evv_exp = evv_experiment()
     terms = ws.derive.derive.get_fully_enhanced_terms(experiment=evv_exp)
 
-    from wilson_suite.wilson_utils.some_reprs import make_SpectralAxisSet
+    from wilson_suite.wilson_utils.builder_functions import make_SpectralAxisSet
     axes_choice: ws.main.spectrum_abstractions.SpectralAxisSet = make_SpectralAxisSet({'A': [1], 'B': [-1,2]}) # this makes A and B > 0
     sim = ws.main.workflow_abstractions.WilsonSimulation()
     sim.addTerms(terms)

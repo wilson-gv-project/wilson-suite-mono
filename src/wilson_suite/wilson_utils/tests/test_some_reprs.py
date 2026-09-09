@@ -1,4 +1,6 @@
-from ..some_reprs import show_valid_axis_combs, show_term_latex, make_SpectralAxisSet
+from ..builder_functions import make_SpectralAxisSet
+
+from ..some_reprs import show_valid_axis_combs, show_term_latex
 import wilson_suite as ws
 
 evv_exp = ws.fixtures.evv_experiment()
