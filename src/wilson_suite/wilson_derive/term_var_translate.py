@@ -178,12 +178,15 @@ def translate_magn_conditions_to_axisvars(magn_conditions: tuple[tuple], axis_ch
         axes_to_ind_vars[ax.label] = list(pulse_tuple.pulse_refs for pulse_tuple in ax.var_set.var_set)
 
     ## FIXME: this part is implemented only for paper1 EVV experiment
-    if magn_conditions != ((-1, 2),):
-        raise NotImplementedError('translate_magn_conditions_to_axisvars is only implemented for EVV w2>w1')
+    if magn_conditions != ((-1, 2),): # -w1+w2>0
+        raise NotImplementedError('translate_magn_conditions_to_axisvars is only implemented for EVV w2>w1 - magn_conditions != ((-1, 2),)')
     
-    if axes_to_ind_vars == {'A': [(1,)], 'B': [(-1,), (2,)]}:
+    if axes_to_ind_vars == {'A': [(1,)], 'B': [(-1,), (2,)]}: # w1; -w1+w2
         return (('B',),)
-    elif axes_to_ind_vars == {'A': [(1,)], 'B': [(2,)]}:
+    elif axes_to_ind_vars == {'A': [(1,)], 'B': [(2,)]}: # w1; w2
         return (('-A', 'B',),)
+    elif axes_to_ind_vars == {'A': [(-1,)], 'B': [(2,)]}: # -w1; w2
+        return (('A', 'B',),)
     else:
-        raise NotImplementedError('translate_magn_conditions_to_axisvars is only implemented for EVV w2>w1')
+        print('axes_to_ind_vars', axes_to_ind_vars)
+        raise NotImplementedError(f'translate_magn_conditions_to_axisvars is only implemented for EVV w2>w1. axes_to_ind_vars is {axes_to_ind_vars}')
