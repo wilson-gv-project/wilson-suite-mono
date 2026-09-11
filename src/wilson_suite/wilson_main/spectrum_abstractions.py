@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 from pathlib import Path
 
-from ..wilson_analysis.render.render_utils import PlotConfig
+from ..wilson_analysis.render.render_utils import PlotConfig, NormalizationType
 from ..wilson_intensities.amplitudes.spectrum_composition import SpectralWindow
 from ..wilson_experiment.indep_vars_and_axes import SpectralAxisSet
 
@@ -274,13 +274,22 @@ class EvaluationInfo:
 	spectral_axes: SpectralAxisSet = None
 	box_range_safety_margin: float = 0.1
 	scale_wrt_max_intensity: bool = False
-	minimum_box_padding: float = 0.0
+	minimum_box_padding: float = 10.0
 
 	# not filtering by default
 	apply_exp_magn_conditions_eval: bool = False
 	apply_exp_magn_conditions_render: bool = False
+	apply_magn_conditions: str = None # 'evaluation', 'eval', 'evl' 'rendering', 'render', 'rnd'
 	exp_magn_conditions: tuple = None
 	magn_conditions_margin: tuple = 80.
+
+	def __post_init__(self):
+		
+		if self.apply_magn_conditions is not None:
+			if self.apply_magn_conditions in ('evaluation', 'eval', 'evl'):
+				self.apply_exp_magn_conditions_eval = True
+			else:
+				raise ValueError(f"Unknown 'apply_magn_conditions' flag: {self.apply_magn_conditions!r}")
 
 @dataclass
 class RenderingInfo:
@@ -296,6 +305,7 @@ class RenderingInfo:
 	projection: str = '2d'
 	reference_max: float = None
 	nlevels: int = 12
+	intensity_normalization_type: NormalizationType = NormalizationType.LOG_SCALE
 	title: str = 'plot'
 	spec_data_operations: str = 'abs()**2'  # 'abs', 'real', 'imag', 'abs()**2'
 	metadata: dict = field(default_factory=lambda: dict())
@@ -306,6 +316,19 @@ class RenderingInfo:
 	style_config: PlotConfig = field(default_factory=lambda: PlotConfig())
 	axes_labels: dict = None
 
+	dynamic_range: float = 100
+
+	apply_exp_magn_conditions_render: bool = False
+	apply_magn_conditions: str = None # 'evaluation', 'eval', 'evl' 'rendering', 'render', 'rnd'
+	exp_magn_conditions: tuple = None
+	magn_conditions_margin: tuple = 80.
+
+	def __post_init__(self):
+		if self.apply_magn_conditions is not None:
+			if self.apply_magn_conditions in ('rendering', 'render', 'rnd'):
+				self.apply_exp_magn_conditions_render = True
+			else:
+				raise ValueError(f"Unknown 'apply_magn_conditions' flag: {self.apply_magn_conditions!r}")
 
 	def update_filename(self, new_filename: str):
 		"""
@@ -362,9 +385,8 @@ class SpecEvalSetup:
 	rnd_info: RenderingInfo = None
 
 	def __post_init__(self):
-		if self.grid is not None:
-			if not isinstance(self.grid, SpectralGrid):
-				raise TypeError("Values of axes dict should be SpectralAxis instances")
+			if self.grid is not None and not isinstance(self.grid, SpectralGrid):
+				raise TypeError(f"grid must be an instance of SpectralGrid or None, got {type(self.grid).__name__}")
 
 	@property
 	def is_ready_evaluate(self):
@@ -387,7 +409,7 @@ class SpecEvalSetup:
 		
 		if not hasattr(self.ev_info, 'dynamic_range'):
 			return False
-
-		if rndinfo is not None:
-			return True
-		return False
+		if self.grid is None:
+			return False
+		
+		return rndinfo is not None

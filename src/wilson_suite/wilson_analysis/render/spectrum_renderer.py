@@ -183,16 +183,16 @@ class SpectrumRenderer(ABC):
         """
         """
         
-        if self.ev_info.apply_exp_magn_conditions_render:
-            magn_conditions = self.ev_info.exp_magn_conditions
+        if self.rnd_info.apply_exp_magn_conditions_render:
+            magn_conditions = self.rnd_info.exp_magn_conditions
         else:
             magn_conditions = None
         
         return compute_masks(data=data, 
-                             dynamic_range=self.ev_info.dynamic_range,
+                             dynamic_range=self.rnd_info.dynamic_range,
                              grid=self.spec_grid,
                              magn_conditions=magn_conditions, 
-                             non_zero_margin=self.ev_info.magn_conditions_margin)
+                             non_zero_margin=self.rnd_info.magn_conditions_margin)
 
     def prep_data(self, spec_data_operations: str) -> np.ndarray:
         """
@@ -258,8 +258,8 @@ class SpectrumRenderer(ABC):
             self.config = self.rnd_info.style_config
         if not isinstance(self.ev_info, EvaluationInfo):
             raise TypeError("ev_info should be an instance of a class EvaluationInfo")
-        if self.ev_info.dynamic_range <= 0:
-            raise ValueError("ev_info.dynamic_range must be positive")
+        if self.rnd_info.dynamic_range <= 0:
+            raise ValueError("rnd_info.dynamic_range must be positive")
 
 
     def _validate_data_2d(self):
@@ -292,7 +292,7 @@ class SpectrumRenderer(ABC):
         # Calculate levels with both original and normalized scales
         levels, labels = self.level_calc.compute_levels(
             intensities=self.intensities,
-            dynamic_range=self.ev_info.dynamic_range,
+            dynamic_range=self.rnd_info.dynamic_range,
             nlevels=self.rnd_info.nlevels,
             colormap_spacing=self.config.colormap_spacing,
             reference_max=self.rnd_info.reference_max
@@ -323,7 +323,7 @@ class SpectrumRenderer(ABC):
 
         levels, labels = self.level_calc.compute_levels(
             intensities=self.intensities,
-            dynamic_range=self.ev_info.dynamic_range,
+            dynamic_range=self.rnd_info.dynamic_range,
             nlevels=self.rnd_info.nlevels,
             colormap_spacing=self.config.colormap_spacing,
             is_normalized=is_normalized,
